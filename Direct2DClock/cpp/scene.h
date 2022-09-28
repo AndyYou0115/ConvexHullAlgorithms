@@ -62,7 +62,6 @@ protected:
     {
         return static_cast<T>(pixels / m_fScaleY);
     }
-
 public:
     GraphicsScene() : m_fScaleX(1.0f), m_fScaleY(1.0f) {}
     virtual ~GraphicsScene() {}
