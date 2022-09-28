@@ -50,7 +50,7 @@ protected:
         }
         return hr;
     }
-
+// THIS IS JUST A TEST
     template <class T>
     T PixelToDipX(T pixels) const
     {
@@ -62,7 +62,6 @@ protected:
     {
         return static_cast<T>(pixels / m_fScaleY);
     }
-
 public:
     GraphicsScene() : m_fScaleX(1.0f), m_fScaleY(1.0f) {}
     virtual ~GraphicsScene() {}
