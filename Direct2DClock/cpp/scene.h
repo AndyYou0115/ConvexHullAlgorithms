@@ -50,7 +50,7 @@ protected:
         }
         return hr;
     }
-
+// THIS IS JUST A TEST
     template <class T>
     T PixelToDipX(T pixels) const
     {
