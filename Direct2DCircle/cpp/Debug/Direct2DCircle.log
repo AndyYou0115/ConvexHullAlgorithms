@@ -1,0 +1,3 @@
+﻿cl : command line warning D9035: option 'Gm' has been deprecated and will be removed in a future release
+  main.cpp
+  Direct2DCircle.vcxproj -> C:\Users\ayou0\OneDrive\Desktop\ConvexHullAlgorithms\Direct2DCircle\cpp\Debug\Direct2DCircle.exe

@@ -1,0 +1,3 @@
+﻿  main.cpp
+C:\Users\ayou0\OneDrive\Desktop\ConvexHullAlgorithms\SimpleDrawing\cpp\main.cpp(32,17): warning C4996: 'ID2D1Factory::GetDesktopDpi': Deprecated. Use DisplayInformation::LogicalDpi for Windows Store Apps or GetDpiForWindow for desktop apps.
+  SimpleDrawing.vcxproj -> C:\Users\ayou0\OneDrive\Desktop\ConvexHullAlgorithms\SimpleDrawing\cpp\Debug\SimpleDrawing.exe
