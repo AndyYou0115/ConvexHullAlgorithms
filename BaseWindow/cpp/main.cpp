@@ -6,6 +6,8 @@
 #include <list>
 #include <memory>
 using namespace std;
+#include <vector>
+using namespace std;
 
 #pragma comment(lib, "d2d1")
 template <class T>
@@ -106,12 +108,17 @@ class MainWindow : public BaseWindow<MainWindow>
     ID2D1SolidColorBrush *pBrush;
     D2D1_ELLIPSE ellipses[15];
     D2D1_RECT_F rectangle;
+	vector<D2D1_ELLIPSE> hull;
 
     void CalculateLayout();
     HRESULT CreateGraphicsResources();
     void DiscardGraphicsResources();
     void OnPaint();
     void Resize();
+	int findSide(D2D1_ELLIPSE p1, D2D1_ELLIPSE p2, D2D1_ELLIPSE p);
+	int dist(D2D1_ELLIPSE p1, D2D1_ELLIPSE p2, D2D1_ELLIPSE p);
+	void quickHull(D2D1_ELLIPSE pointlist[], D2D1_ELLIPSE p1, D2D1_ELLIPSE p2, int side);
+	D2D1_ELLIPSE CreateQuickHull(D2D1_ELLIPSE pointlist[15]); 
 
 public:
     MainWindow() : pFactory(NULL), pRenderTarget(NULL), pBrush(NULL)
@@ -207,6 +214,69 @@ void MainWindow::OnPaint()
     }
 }
 
+D2D1_ELLIPSE MainWindow::CreateQuickHull(D2D1_ELLIPSE pointlist[15]) 
+{
+	D2D1_ELLIPSE left = pointlist[0];
+	D2D1_ELLIPSE right = pointlist[0];
+	int ileft = 0;
+	int iright = 0;
+
+	//Go through the list of ellipses to find the extreme top, left, right, bottom points
+	for(int i=1; i < 15; i++) {
+		D2D1_ELLIPSE pt = pointlist[i];
+		if(pt.point.x < left.point.x)
+			ileft = i;
+		if(pt.point.x > right.point.x)
+			iright = i;
+	}
+
+	quickHull(pointlist, pointlist[ileft], pointlist[iright], 1);
+	quickHull(pointlist, pointlist[ileft], pointlist[iright], -1);
+}
+
+int MainWindow::findSide(D2D1_ELLIPSE p1, D2D1_ELLIPSE p2, D2D1_ELLIPSE p)
+{
+	int val = (p.point.y - p1.point.y) * (p2.point.x - p1.point.x) - 
+	(p2.point.y - p1.point.y) * (p.point.x - p1.point.x);
+
+	if(val > 0)
+		return 1;
+	else
+		return -1;
+}
+
+int MainWindow::dist(D2D1_ELLIPSE p1, D2D1_ELLIPSE p2, D2D1_ELLIPSE p) 
+{
+	return abs((p.point.y - p1.point.y) * (p2.point.x - p1.point.x) - 
+	(p2.point.y - p1.point.y) * (p.point.x - p1.point.x));
+}
+
+void MainWindow::quickHull(D2D1_ELLIPSE pointlist[], D2D1_ELLIPSE p1, D2D1_ELLIPSE p2, int side)
+{
+	int ifarthest = -1;
+	int maxdist = 0;
+
+	for(int i=0; i<15; i++)
+	{
+		int current = dist(p1, p2, pointlist[i]);
+		if(findSide(p1, p2, pointlist[i]) == side && current > maxdist)
+		{
+			ifarthest = i;
+			maxdist = current;
+		}
+	}
+
+	if(ifarthest == -1)
+	{
+		hull.push_back(p1);
+		hull.push_back(p2);
+		return;
+	}
+
+	quickHull(pointlist, pointlist[ifarthest], p1, -findSide(pointlist[ifarthest], p1, p2));
+    quickHull(pointlist, pointlist[ifarthest], p2, -findSide(pointlist[ifarthest], p2, p1));
+}
+
 void MainWindow::Resize()
 {
     if (pRenderTarget != NULL)
@@ -221,6 +291,8 @@ void MainWindow::Resize()
         InvalidateRect(m_hwnd, NULL, FALSE);
     }
 }
+
+
 int WINAPI wWinMain(HINSTANCE hInstance, HINSTANCE, PWSTR pCmdLine, int nCmdShow)
 {
     MainWindow win;
@@ -268,7 +340,8 @@ LRESULT MainWindow::HandleMessage(UINT uMsg, WPARAM wParam, LPARAM lParam)
         }
         else if (LOWORD(wParam) == QuickHull)
         {
-            MessageBox(NULL, L"QuickHull", L"AH! I GOT PRESSED", MB_ICONINFORMATION);
+			CreateQuickHull(ellipses);
+			//Draw convex hull based on points in vector hull
         }
         else if (LOWORD(wParam) == PointCH)
         {
