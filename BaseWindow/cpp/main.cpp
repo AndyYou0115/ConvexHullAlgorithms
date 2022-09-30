@@ -8,9 +8,14 @@
 #include <memory>
 #include <iostream>
 using namespace std;
+#include <vector>
+using namespace std;
+#include <algorithm>
+using namespace std;
 
 #pragma comment(lib, "d2d1")
 template <class T>
+
 void SafeRelease(T **ppT)
 {
 	if (*ppT)
@@ -151,6 +156,7 @@ class MainWindow : public BaseWindow<MainWindow>
 	int selectedPoint;
 	D2D1_RECT_F rectangle;
 	float zoom = 1;
+    vector<D2D1_LINE_JOIN_MITER> edges;
 
 	void CreateButtons();
 	void CalculateLayout();
@@ -203,13 +209,11 @@ void MainWindow::CalculateLayout()
 	{
 		D2D1_SIZE_F size = pRenderTarget->GetSize();
 
-		const float diffInWidth = size.width - prevSize.width;
-		const float diffInHeight = size.height - prevSize.height;
-		rectangle = D2D1::RectF(
-			230,
-			0,
-			250,
-			size.height);
+        rectangle = D2D1::RectF(
+            230,
+            0,
+            250,
+            size.height);
 
 		// for (int i = 0; i < 15; i++)
 		// {
@@ -315,6 +319,32 @@ void MainWindow::RandPoints()
 		CreateButtons();
 	}
 }
+void MainWindow::DrawHull()
+{
+    //Sort points based on x value
+    auto sortrule = [] (D2D1_ELLIPSE const& e1, D2D1_ELLIPSE const& e2) -> bool
+    {
+        return e1.point.x < e2.point.x;
+    };
+
+    sort(hull.begin(), hull.end(), sortrule);
+    
+    const D2D1_COLOR_F color = D2D1::ColorF(1.0f, 1.0f, 0);
+    pRenderTarget->CreateSolidColorBrush(color, &pBrush);
+    for(int i=0; i < hull.size()-1; i++)
+    {   
+         edge = pRenderTarget->DrawLine(
+                D2D1::Point2F(static_cast<FLOAT>(hull[i].point.x),static_cast<FLOAT>(hull[i].point.y)),
+                D2D1::Point2F(static_cast<FLOAT>(hull[i+1].point.x),static_cast<FLOAT>(hull[i+1].point.y)),
+                ,
+                0.5f
+            )
+        edges.push_back(edge); 
+        
+    }
+    edges.push_back();
+}
+
 void MainWindow::Resize()
 {
 	if (pRenderTarget != NULL)
