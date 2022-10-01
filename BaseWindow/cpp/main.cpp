@@ -16,7 +16,7 @@ using namespace std;
 #pragma comment(lib, "d2d1")
 template <class T>
 
-void SafeRelease(T** ppT)
+void SafeRelease(T **ppT)
 {
 	if (*ppT)
 	{
@@ -30,7 +30,7 @@ class DPIScale
 	static float scaleY;
 
 public:
-	static void Initialize(ID2D1Factory* pFactory)
+	static void Initialize(ID2D1Factory *pFactory)
 	{
 		FLOAT dpiX, dpiY;
 		pFactory->GetDesktopDpi(&dpiX, &dpiY);
@@ -82,17 +82,17 @@ class BaseWindow
 public:
 	static LRESULT CALLBACK WindowProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
 	{
-		DERIVED_TYPE* pThis = NULL;
+		DERIVED_TYPE *pThis = NULL;
 		if (uMsg == WM_NCCREATE)
 		{
-			CREATESTRUCT* pCreate = (CREATESTRUCT*)lParam;
-			pThis = (DERIVED_TYPE*)pCreate->lpCreateParams;
+			CREATESTRUCT *pCreate = (CREATESTRUCT *)lParam;
+			pThis = (DERIVED_TYPE *)pCreate->lpCreateParams;
 			SetWindowLongPtr(hwnd, GWLP_USERDATA, (LONG_PTR)pThis);
 			pThis->m_hwnd = hwnd;
 		}
 		else
 		{
-			pThis = (DERIVED_TYPE*)GetWindowLongPtr(hwnd, GWLP_USERDATA);
+			pThis = (DERIVED_TYPE *)GetWindowLongPtr(hwnd, GWLP_USERDATA);
 		}
 		if (pThis)
 		{
@@ -117,7 +117,7 @@ public:
 		HWND hWndParent = 0,
 		HMENU hMenu = 0)
 	{
-		WNDCLASS wc = { 0 };
+		WNDCLASS wc = {0};
 
 		wc.lpfnWndProc = DERIVED_TYPE::WindowProc;
 		wc.hInstance = GetModuleHandle(NULL);
@@ -143,16 +143,13 @@ protected:
 
 class MainWindow : public BaseWindow<MainWindow>
 {
-	//HONESTLY NO IDEA WHAT THESE DO I DONT THINK THEY ARE EVEN BEING USED
+	// HONESTLY NO IDEA WHAT THESE DO I DONT THINK THEY ARE EVEN BEING USED
 	HCURSOR hCursor;
 	ID2D1Factory *pFactory;
-	ID2D1HwndRenderTarget *pRenderTarget;
 	D2D1_SIZE_F prevSize;
-
 	D2D1_POINT_2F ptMouse;
-	D2D1_SIZE_F prevSize;
 
-	//MODE SWITCH VARIABLES
+	// MODE SWITCH VARIABLES
 	BOOL MDDMode = false;
 	BOOL MSDMode = false;
 	BOOL QuickHullMode = false;
@@ -161,49 +158,48 @@ class MainWindow : public BaseWindow<MainWindow>
 	void SetMode(int x);
 	int getMode();
 
-	//Main Variables
-	ID2D1HwndRenderTarget* pRenderTarget;
+	// Main Variables
+	ID2D1HwndRenderTarget *pRenderTarget;
 	D2D1_RECT_F rectangle;
-	float zoom = 1; //Scroll factor
+	float zoom = 1; // Scroll factor
 
-	//BRUSHES
-	ID2D1SolidColorBrush* pBrush; //yellow
-	ID2D1SolidColorBrush* rectBrush; //grey
-
-	//QUICKHULL | POINT CONVEX HULL
+	// BRUSHES
+	ID2D1SolidColorBrush *pBrush;	  // yellow
+	ID2D1SolidColorBrush *rectBrush;  // grey
+	ID2D1SolidColorBrush *greenBrush; // Green
+	ID2D1SolidColorBrush *redBrush;	  // Red
+	// QUICKHULL | POINT CONVEX HULL
 	D2D1_ELLIPSE ellipses[15];
 	int lengthOfEllipses;
 
-	int selectedPoint;
-
 	vector<D2D1_ELLIPSE> hull;
-  vector<HRESULT> edges;
+	vector<HRESULT> edges;
 
 	void SortPoints();
 
-	D2D1_POINT_2F pointCHTestPoint;
-
-	//USER INTERACTION
-	int selectedPoint; //point thats clicked on by mouse
-	void CreateButtons();//Makes the buttons
-	void CalculateLayout(); //recalcs the layout
+	D2D1_ELLIPSE pointCHTestPoint;
+	BOOL pointCHSelected = false;
+	// USER INTERACTION
+	int selectedPoint;		// point thats clicked on by mouse
+	void CreateButtons();	// Makes the buttons
+	void CalculateLayout(); // recalcs the layout
 
 	HRESULT CreateGraphicsResources();
 	void DiscardGraphicsResources();
 	void OnPaint();
 	void Resize();
 	void RandPoints();
-	//USER MOUSE INTERACTIONS:
+	// USER MOUSE INTERACTIONS:
 	void OnLButtonDown(int x, int y);
 	void OnMouseMove(int pixelX, int pixelY);
 	BOOL HitTest(float x, float y);
 	int findSide(D2D1_ELLIPSE p1, D2D1_ELLIPSE p2, D2D1_ELLIPSE p);
 	int dist(D2D1_ELLIPSE p1, D2D1_ELLIPSE p2, D2D1_ELLIPSE p);
 	void quickHull(D2D1_ELLIPSE p1, D2D1_ELLIPSE p2, int side);
-	void CreateQuickHull(); 
+	void CreateQuickHull();
 	void DrawHull();
-	
 	void MouseScroll();
+	void PointCHMethod();
 
 public:
 	MainWindow() : pFactory(NULL), pRenderTarget(NULL), pBrush(NULL)
@@ -212,7 +208,28 @@ public:
 	PCWSTR ClassName() const { return L"Convex Hull Algorithms"; }
 	LRESULT HandleMessage(UINT uMsg, WPARAM wParam, LPARAM lParam);
 };
+int Left(D2D1_POINT_2F a, D2D1_POINT_2F b, D2D1_POINT_2F c)
+{
+	return ((b.x - a.x) * (c.y - a.y) - (c.x - a.x) * (b.y - a.y)) > 0;
+}
 
+void MainWindow::PointCHMethod()
+{
+	if (pRenderTarget != NULL)
+	{
+		D2D1_SIZE_F size = pRenderTarget->GetSize();
+
+		for (int i = 0; i < hull.size() - 1; i++)
+		{
+			if (Left(hull[i].point, hull[i + 1].point, pointCHTestPoint.point))
+			{
+				pRenderTarget->FillEllipse(pointCHTestPoint, redBrush);
+				return;
+			}
+		}
+		pRenderTarget->FillEllipse(pointCHTestPoint, greenBrush);
+	}
+}
 void MainWindow::SetMode(int x)
 {
 
@@ -224,28 +241,32 @@ void MainWindow::SetMode(int x)
 		PCHMode = false;
 		GJKMode = false;
 	}
-	else if (x == 1) {
+	else if (x == 1)
+	{
 		MDDMode = false;
 		MSDMode = true;
 		QuickHullMode = false;
 		PCHMode = false;
 		GJKMode = false;
 	}
-	else if (x == 2) {
+	else if (x == 2)
+	{
 		MDDMode = false;
 		MSDMode = false;
 		QuickHullMode = true;
 		PCHMode = false;
 		GJKMode = false;
 	}
-	else if (x == 3) {
+	else if (x == 3)
+	{
 		MDDMode = false;
 		MSDMode = false;
 		QuickHullMode = false;
 		PCHMode = true;
 		GJKMode = false;
 	}
-	else if (x == 4) {
+	else if (x == 4)
+	{
 		MDDMode = false;
 		MSDMode = false;
 		QuickHullMode = false;
@@ -254,25 +275,26 @@ void MainWindow::SetMode(int x)
 	}
 }
 
-int MainWindow::getMode() {
-	BOOL MDDMode = false;
-	BOOL MSDMode = false;
-	BOOL QuickHullMode = false;
-	BOOL PCHMode = false;
-	BOOL GJKMode = false;
-	if (MDDMode) {
+int MainWindow::getMode()
+{
+	if (MDDMode)
+	{
 		return 0;
 	}
-	else if (MSDMode) {
+	else if (MSDMode)
+	{
 		return 1;
 	}
-	else if (QuickHullMode) {
+	else if (QuickHullMode)
+	{
 		return 2;
 	}
-	else if (PCHMode) {
+	else if (PCHMode)
+	{
 		return 3;
 	}
-	else if (GJKMode) {
+	else if (GJKMode)
+	{
 		return 4;
 	}
 	return -1;
@@ -340,6 +362,14 @@ void MainWindow::OnMouseMove(int pixelX, int pixelY)
 		OnPaint();
 		CreateButtons();
 	}
+	if (pointCHSelected)
+	{
+		pointCHTestPoint.point.x = dipX;
+		pointCHTestPoint.point.y = dipY;
+		PointCHMethod();
+		OnPaint();
+		CreateButtons();
+	}
 }
 HRESULT MainWindow::CreateGraphicsResources()
 {
@@ -360,6 +390,10 @@ HRESULT MainWindow::CreateGraphicsResources()
 		{
 			const D2D1_COLOR_F yellow = D2D1::ColorF(D2D1::ColorF::Yellow, 1.0f);
 			hr = pRenderTarget->CreateSolidColorBrush(yellow, &pBrush);
+			const D2D1_COLOR_F green = D2D1::ColorF(D2D1::ColorF::Green, 1.0f);
+			hr = pRenderTarget->CreateSolidColorBrush(green, &greenBrush);
+			const D2D1_COLOR_F red = D2D1::ColorF(D2D1::ColorF::Red, 1.0f);
+			hr = pRenderTarget->CreateSolidColorBrush(red, &redBrush);
 			const D2D1_COLOR_F grey = D2D1::ColorF(D2D1::ColorF::Gray, 1.0f);
 			hr = pRenderTarget->CreateSolidColorBrush(grey, &rectBrush);
 			if (SUCCEEDED(hr))
@@ -396,6 +430,10 @@ void MainWindow::OnPaint()
 				pRenderTarget->FillEllipse(ellipses[i], pBrush);
 			}
 		}
+		if (getMode() == 3)
+		{
+			pRenderTarget->FillEllipse(pointCHTestPoint, greenBrush);
+		}
 
 		pRenderTarget->FillRectangle(&rectangle, rectBrush);
 
@@ -420,11 +458,11 @@ void MainWindow::RandPoints()
 			ellipses[i] = D2D1::Ellipse(D2D1::Point2F((rand() % int(size.width / 2) + 200) + 230, rand() % int(size.height - 150) + 50), radius, radius);
 		}
 		lengthOfEllipses = 15;
+		pointCHTestPoint = D2D1::Ellipse(D2D1::Point2F((rand() % int(size.width / 2) + 200) + 230, rand() % int(size.height - 150) + 50), radius, radius);
 		OnPaint();
 		CreateButtons();
 	}
 }
-
 
 void MainWindow::Resize()
 {
@@ -454,7 +492,7 @@ void MainWindow::MouseScroll()
 				D2D1::Size(1 + scaleFact, 1 + scaleFact),
 				D2D1::Point2F(midX, midY)));
 
-		char buffer[256] = { 0 };
+		char buffer[256] = {0};
 		wchar_t wtext[256];
 		sprintf(buffer, "Value is %f %f", ellipses[0].point.x, 1 + scaleFact);
 		mbstowcs(wtext, buffer, strlen(buffer) + 1);
@@ -551,7 +589,7 @@ void MainWindow::OnLButtonDown(int x, int y)
 	const float dipY = DPIScale::PixelsToDipsY(y);
 	int hitIndex = HitTest(dipX, dipY);
 
-	char buffer[256] = { 0 };
+	char buffer[256] = {0};
 	wchar_t wtext[256];
 	sprintf(buffer, "Value is %f %f", dipX, dipY);
 	mbstowcs(wtext, buffer, strlen(buffer) + 1);
@@ -562,9 +600,13 @@ void MainWindow::OnLButtonDown(int x, int y)
 		// we hit something
 		selectedPoint = hitIndex;
 	}
+	if (HitTestEllipse(dipX, dipY, pointCHTestPoint))
+	{
+		pointCHSelected = true;
+	}
 }
 
-void MainWindow::CreateQuickHull() 
+void MainWindow::CreateQuickHull()
 {
 	hull = vector<D2D1_ELLIPSE>();
 	D2D1_ELLIPSE left = ellipses[0];
@@ -572,12 +614,13 @@ void MainWindow::CreateQuickHull()
 	int ileft = 0;
 	int iright = 0;
 
-	//Go through the list of ellipses to find the extreme top, left, right, bottom points
-	for(int i=1; i < 15; i++) {
+	// Go through the list of ellipses to find the extreme top, left, right, bottom points
+	for (int i = 1; i < 15; i++)
+	{
 		D2D1_ELLIPSE pt = ellipses[i];
-		if(pt.point.x < left.point.x)
+		if (pt.point.x < left.point.x)
 			ileft = i;
-		if(pt.point.x > right.point.x)
+		if (pt.point.x > right.point.x)
 			iright = i;
 	}
 
@@ -587,20 +630,20 @@ void MainWindow::CreateQuickHull()
 
 int MainWindow::findSide(D2D1_ELLIPSE p1, D2D1_ELLIPSE p2, D2D1_ELLIPSE p)
 {
-	int val = (p.point.y - p1.point.y) * (p2.point.x - p1.point.x) - 
-	(p2.point.y - p1.point.y) * (p.point.x - p1.point.x);
+	int val = (p.point.y - p1.point.y) * (p2.point.x - p1.point.x) -
+			  (p2.point.y - p1.point.y) * (p.point.x - p1.point.x);
 
-	if(val > 0)
+	if (val > 0)
 		return 1;
 	if (val < 0)
 		return -1;
 	return 0;
 }
 
-int MainWindow::dist(D2D1_ELLIPSE p1, D2D1_ELLIPSE p2, D2D1_ELLIPSE p) 
+int MainWindow::dist(D2D1_ELLIPSE p1, D2D1_ELLIPSE p2, D2D1_ELLIPSE p)
 {
-	return abs((p.point.y - p1.point.y) * (p2.point.x - p1.point.x) - 
-	(p2.point.y - p1.point.y) * (p.point.x - p1.point.x));
+	return abs((p.point.y - p1.point.y) * (p2.point.x - p1.point.x) -
+			   (p2.point.y - p1.point.y) * (p.point.x - p1.point.x));
 }
 
 void MainWindow::quickHull(D2D1_ELLIPSE p1, D2D1_ELLIPSE p2, int side)
@@ -608,33 +651,33 @@ void MainWindow::quickHull(D2D1_ELLIPSE p1, D2D1_ELLIPSE p2, int side)
 	int ifarthest = -1;
 	int maxdist = 0;
 
-	for(int i=0; i<15; i++)
+	for (int i = 0; i < 15; i++)
 	{
 		int current = dist(p1, p2, ellipses[i]);
-		if(findSide(p1, p2, ellipses[i]) == side && current > maxdist)
+		if (findSide(p1, p2, ellipses[i]) == side && current > maxdist)
 		{
 			ifarthest = i;
 			maxdist = current;
 		}
 	}
 
-	if(ifarthest == -1)
+	if (ifarthest == -1)
 	{
 		hull.push_back(p1);
 		hull.push_back(p2);
-		
+
 		return;
 	}
 	quickHull(ellipses[ifarthest], p1, -findSide(ellipses[ifarthest], p1, p2));
-    quickHull(ellipses[ifarthest], p2, -findSide(ellipses[ifarthest], p2, p1));
+	quickHull(ellipses[ifarthest], p2, -findSide(ellipses[ifarthest], p2, p1));
 }
 
 void MainWindow::SortPoints()
 {
 	D2D1_ELLIPSE min = hull[0];
-	for(int i=1; i<hull.size(); i++)
+	for (int i = 1; i < hull.size(); i++)
 	{
-		if(hull[i].point.x > min.point.x)
+		if (hull[i].point.x > min.point.x)
 		{
 			min = hull[i];
 			D2D1_ELLIPSE temp = hull[0];
@@ -645,11 +688,11 @@ void MainWindow::SortPoints()
 
 	int y = hull[0].point.y;
 	int x = hull[0].point.x;
-	for(int j=1; j<hull.size(); j++)
+	for (int j = 1; j < hull.size(); j++)
 	{
-		for(int k=j+1; k<hull.size(); k++)
+		for (int k = j + 1; k < hull.size(); k++)
 		{
-			if((atan((hull[j].point.y-y)/(hull[j].point.x-x))) > (atan((hull[k].point.y-y)/(hull[k].point.x-x))))
+			if ((atan((hull[j].point.y - y) / (hull[j].point.x - x))) > (atan((hull[k].point.y - y) / (hull[k].point.x - x))))
 			{
 				D2D1_ELLIPSE temp = hull[j];
 				hull[j] = hull[k];
@@ -661,15 +704,15 @@ void MainWindow::SortPoints()
 
 void MainWindow::DrawHull()
 {
-	//Sort the points based on x value
+	// Sort the points based on x value
 	SortPoints();
 	// char buffer[254] ={0};
 	// sprintf(buffer, "BUFFER SIZE %i", hull.size());
 	// MessageBoxA(NULL, buffer, "BUFF size", NULL);
 	// for(int i=0; i < hull.size(); i++)
-   	// 	std::cout << hull.at(i).point.x << ',' << hull.at(i).point.y << endl;
-	
-	//Draw the convex hull with the sorted point array
+	// 	std::cout << hull.at(i).point.x << ',' << hull.at(i).point.y << endl;
+
+	// Draw the convex hull with the sorted point array
 	PAINTSTRUCT ps;
 	BeginPaint(m_hwnd, &ps);
 	pRenderTarget->BeginDraw();
@@ -678,32 +721,30 @@ void MainWindow::DrawHull()
 	const D2D1_COLOR_F yellow = D2D1::ColorF(D2D1::ColorF::CadetBlue, 1.0f);
 	hr = pRenderTarget->CreateSolidColorBrush(yellow, &pBrush);
 
-	for(int i=0; i<hull.size()-1; i++)
+	for (int i = 0; i < hull.size() - 1; i++)
 	{
 		// if (SUCCEEDED(hr)) {
 		// 	CreateWindow(L"STATIC", L"SUCCEEDED", WS_VISIBLE | WS_CHILD | WS_BORDER, 200, 300, 300, 25, m_hwnd, NULL, NULL, NULL);
 		// }
-		//edges.push_back(
-			pRenderTarget->DrawLine(
-				D2D1::Point2F(static_cast<FLOAT>(hull[i].point.x), static_cast<FLOAT>(hull[i].point.y)),
-				D2D1::Point2F(static_cast<FLOAT>(hull[i+1].point.x), static_cast<FLOAT>(hull[i+1].point.y)),
-				pBrush,
-				1.5f
-			);
-	//);		
+		// edges.push_back(
+		pRenderTarget->DrawLine(
+			D2D1::Point2F(static_cast<FLOAT>(hull[i].point.x), static_cast<FLOAT>(hull[i].point.y)),
+			D2D1::Point2F(static_cast<FLOAT>(hull[i + 1].point.x), static_cast<FLOAT>(hull[i + 1].point.y)),
+			pBrush,
+			1.5f);
+		//);
 	}
 
-	//Draw the last edge from last point in the list to the first point in the list
-	//edges.push_back(
+	// Draw the last edge from last point in the list to the first point in the list
+	// edges.push_back(
 	pRenderTarget->DrawLine(
-        D2D1::Point2F(static_cast<FLOAT>(hull[hull.size()-1].point.x), static_cast<FLOAT>(hull[hull.size()-1].point.y)),
+		D2D1::Point2F(static_cast<FLOAT>(hull[hull.size() - 1].point.x), static_cast<FLOAT>(hull[hull.size() - 1].point.y)),
 		D2D1::Point2F(static_cast<FLOAT>(hull[0].point.x), static_cast<FLOAT>(hull[0].point.y)),
-        pBrush,
-        0.5f
-	);
+		pBrush,
+		0.5f);
 	pRenderTarget->EndDraw();
 	EndPaint(m_hwnd, &ps);
-	//);	
+	//);
 }
 
 void MainWindow::CreateButtons()
@@ -745,7 +786,7 @@ LRESULT MainWindow::HandleMessage(UINT uMsg, WPARAM wParam, LPARAM lParam)
 
 	case WM_CREATE:
 		if (FAILED(D2D1CreateFactory(
-			D2D1_FACTORY_TYPE_SINGLE_THREADED, &pFactory)))
+				D2D1_FACTORY_TYPE_SINGLE_THREADED, &pFactory)))
 		{
 			return -1; // Fail CreateWindowEx.
 		}
@@ -773,27 +814,27 @@ LRESULT MainWindow::HandleMessage(UINT uMsg, WPARAM wParam, LPARAM lParam)
 		}
 		else if (LOWORD(wParam) == QuickHull)
 		{
-			RandPoints();
-			CreateQuickHull();
-			DrawHull();
 
 			if (pRenderTarget != NULL)
 			{
 				SetMode(2);
+				RandPoints();
+				CreateQuickHull();
+				DrawHull();
 				pRenderTarget->SetTransform(D2D1::Matrix3x2F::Identity());
 			}
-
-
 		}
 		else if (LOWORD(wParam) == PointCH)
 		{
-			RandPoints();
+
 			if (pRenderTarget != NULL)
 			{
 				SetMode(3);
+				RandPoints();
+				CreateQuickHull();
+				DrawHull();
 				pRenderTarget->SetTransform(D2D1::Matrix3x2F::Identity());
 			}
-
 		}
 		else if (LOWORD(wParam) == GJK)
 		{
@@ -821,6 +862,7 @@ LRESULT MainWindow::HandleMessage(UINT uMsg, WPARAM wParam, LPARAM lParam)
 		return 0;
 	case WM_LBUTTONUP:
 		selectedPoint = -1;
+		pointCHSelected = false;
 		return 0;
 	case WM_DESTROY:
 		DiscardGraphicsResources();
@@ -838,7 +880,7 @@ LRESULT MainWindow::HandleMessage(UINT uMsg, WPARAM wParam, LPARAM lParam)
 		zoom += (float)GET_WHEEL_DELTA_WPARAM(wParam) / WHEEL_DELTA;
 		MouseScroll();
 	}
-	// Other messages not shown...
+		// Other messages not shown...
 
 	case WM_SIZE:
 		Resize();
