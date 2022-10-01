@@ -150,7 +150,7 @@ class MainWindow : public BaseWindow<MainWindow>
 	D2D1_SIZE_F prevSize;
 
 	D2D1_POINT_2F ptMouse;
-	D2D1_SIZE_F prevSize;
+
 
 	//MODE SWITCH VARIABLES
 	BOOL MDDMode = false;
@@ -162,7 +162,7 @@ class MainWindow : public BaseWindow<MainWindow>
 	int getMode();
 
 	//Main Variables
-	ID2D1HwndRenderTarget* pRenderTarget;
+
 	D2D1_RECT_F rectangle;
 	float zoom = 1; //Scroll factor
 
@@ -174,10 +174,11 @@ class MainWindow : public BaseWindow<MainWindow>
 	D2D1_ELLIPSE ellipses[15];
 	int lengthOfEllipses;
 
-	int selectedPoint;
 
 	vector<D2D1_ELLIPSE> hull;
   vector<HRESULT> edges;
+
+  bool checked[15] = { false,false,false,false,false,false,false,false,false,false,false,false,false,false,false };
 
 	void SortPoints();
 
@@ -408,6 +409,7 @@ void MainWindow::OnPaint()
 		EndPaint(m_hwnd, &ps);
 	}
 }
+
 void MainWindow::RandPoints()
 {
 	if (pRenderTarget != NULL)
@@ -567,6 +569,8 @@ void MainWindow::OnLButtonDown(int x, int y)
 void MainWindow::CreateQuickHull() 
 {
 	hull = vector<D2D1_ELLIPSE>();
+	for (int i = 0; i < 15; i++) checked[i] = false;
+
 	D2D1_ELLIPSE left = ellipses[0];
 	D2D1_ELLIPSE right = ellipses[0];
 	int ileft = 0;
@@ -611,19 +615,37 @@ void MainWindow::quickHull(D2D1_ELLIPSE p1, D2D1_ELLIPSE p2, int side)
 	for(int i=0; i<15; i++)
 	{
 		int current = dist(p1, p2, ellipses[i]);
-		if(findSide(p1, p2, ellipses[i]) == side && current > maxdist)
+		if(findSide(p1, p2, ellipses[i]) == side && current > maxdist && !checked[i])
 		{
 			ifarthest = i;
 			maxdist = current;
 		}
 	}
-
+	
 	if(ifarthest == -1)
 	{
+		int ip1 = -1;
+		int ip2 = -1;
+		// for(int i=0; i<(*(&ellipses+1)-ellipses); i++)
+		// {
+		// 	if(ellipses[i].point.x == p1.point.x && ellipses[i].point.y == p1.point.y)
+		// 	{
+		// 		ip1 = i;
+		// 	}
+		// 	else if(ellipses[i].point.x == p2.point.x && ellipses[i].point.y == p2.point.y)
+		// 	{
+		// 		ip2 = i;
+		// 	}
+		// }
+
 		hull.push_back(p1);
 		hull.push_back(p2);
-		
+		checked[ip1] = true;
+		checked[ip2] = true;
 		return;
+	}
+	else {
+		checked[ifarthest] = true;
 	}
 	quickHull(ellipses[ifarthest], p1, -findSide(ellipses[ifarthest], p1, p2));
     quickHull(ellipses[ifarthest], p2, -findSide(ellipses[ifarthest], p2, p1));
