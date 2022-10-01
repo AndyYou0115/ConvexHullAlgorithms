@@ -148,7 +148,7 @@ class MainWindow : public BaseWindow<MainWindow>
 	ID2D1Factory* pFactory;
 	D2D1_SIZE_F prevSize;
 	D2D1_POINT_2F ptMouse;
-
+	ID2D1HwndRenderTarget* pRenderTarget;
 
 	// MODE SWITCH VARIABLES
 	BOOL MDDMode = false;
@@ -158,7 +158,6 @@ class MainWindow : public BaseWindow<MainWindow>
 	BOOL GJKMode = false;
 	void SetMode(int x);
 	int getMode();
-
 
 	D2D1_RECT_F rectangle;
 	float zoom = 1; // Scroll factor
@@ -175,7 +174,7 @@ class MainWindow : public BaseWindow<MainWindow>
 	vector<D2D1_ELLIPSE> hull;
 	vector<HRESULT> edges;
 
-  bool checked[15] = { false,false,false,false,false,false,false,false,false,false,false,false,false,false,false };
+	bool checked[15] = { false, false, false, false, false, false, false, false, false, false, false, false, false, false, false };
 
 	void SortPoints();
 
@@ -240,6 +239,7 @@ void MainWindow::PointCHMethod()
 		insideCH = true;
 	}
 	OnPaint();
+	DrawHull();
 	CreateButtons();
 }
 void MainWindow::SetMode(int x)
@@ -370,8 +370,9 @@ void MainWindow::OnMouseMove(int pixelX, int pixelY)
 		hull = vector<D2D1_ELLIPSE>();
 		RandPoints();
 		CreateQuickHull();
-		DrawHull();
+
 		OnPaint();
+		DrawHull();
 		CreateButtons();
 	}
 	if (pointCHSelected)
@@ -380,7 +381,7 @@ void MainWindow::OnMouseMove(int pixelX, int pixelY)
 		pointCHTestPoint.point.y = dipY;
 
 		PointCHMethod();
-
+		DrawHull();
 		CreateButtons();
 	}
 }
@@ -436,7 +437,7 @@ void MainWindow::OnPaint()
 		pRenderTarget->BeginDraw();
 
 		pRenderTarget->Clear(D2D1::ColorF(D2D1::ColorF::Black));
-		if (lengthOfEllipses != 0)
+		if (lengthOfEllipses != 0 && getMode() != 3)
 		{
 			for (int i = 0; i < 15; i++)
 			{
@@ -455,6 +456,7 @@ void MainWindow::OnPaint()
 				pRenderTarget->FillEllipse(pointCHTestPoint, redBrush);
 			}
 		}
+
 
 		pRenderTarget->FillRectangle(&rectangle, rectBrush);
 
@@ -482,6 +484,7 @@ void MainWindow::RandPoints()
 		lengthOfEllipses = 15;
 		pointCHTestPoint = D2D1::Ellipse(D2D1::Point2F((rand() % int(size.width / 2) + 200) + 230, rand() % int(size.height - 150) + 50), radius, radius);
 		OnPaint();
+
 		CreateButtons();
 	}
 }
@@ -631,7 +634,8 @@ void MainWindow::OnLButtonDown(int x, int y)
 void MainWindow::CreateQuickHull()
 {
 	hull = vector<D2D1_ELLIPSE>();
-	for (int i = 0; i < 15; i++) checked[i] = false;
+	for (int i = 0; i < 15; i++)
+		checked[i] = false;
 
 	D2D1_ELLIPSE left = ellipses[0];
 	D2D1_ELLIPSE right = ellipses[0];
@@ -679,7 +683,7 @@ void MainWindow::quickHull(D2D1_ELLIPSE p1, D2D1_ELLIPSE p2, int side)
 	{
 		int current = dist(p1, p2, ellipses[i]);
 
-		if(findSide(p1, p2, ellipses[i]) == side && current > maxdist && !checked[i])
+		if (findSide(p1, p2, ellipses[i]) == side && current > maxdist && !checked[i])
 
 		{
 			ifarthest = i;
@@ -687,8 +691,7 @@ void MainWindow::quickHull(D2D1_ELLIPSE p1, D2D1_ELLIPSE p2, int side)
 		}
 	}
 
-	
-	if(ifarthest == -1)
+	if (ifarthest == -1)
 
 	{
 		int ip1 = -1;
@@ -713,7 +716,8 @@ void MainWindow::quickHull(D2D1_ELLIPSE p1, D2D1_ELLIPSE p2, int side)
 
 		return;
 	}
-	else {
+	else
+	{
 		checked[ifarthest] = true;
 	}
 	quickHull(ellipses[ifarthest], p1, -findSide(ellipses[ifarthest], p1, p2));
@@ -880,8 +884,9 @@ LRESULT MainWindow::HandleMessage(UINT uMsg, WPARAM wParam, LPARAM lParam)
 				SetMode(3);
 				RandPoints();
 				CreateQuickHull();
-				DrawHull();
+
 				PointCHMethod();
+				DrawHull();
 				pRenderTarget->SetTransform(D2D1::Matrix3x2F::Identity());
 			}
 		}
@@ -912,6 +917,10 @@ LRESULT MainWindow::HandleMessage(UINT uMsg, WPARAM wParam, LPARAM lParam)
 	case WM_LBUTTONUP:
 		selectedPoint = -1;
 		pointCHSelected = false;
+		if (getMode() == 3) {
+			DrawHull();
+		}
+		CreateButtons();
 		return 0;
 	case WM_DESTROY:
 		DiscardGraphicsResources();
@@ -922,6 +931,9 @@ LRESULT MainWindow::HandleMessage(UINT uMsg, WPARAM wParam, LPARAM lParam)
 	case WM_PAINT:
 
 		OnPaint();
+		if (getMode() == 3 && hull.size() > 2) {
+			DrawHull();
+		}
 		return 0;
 	case WM_MOUSEWHEEL:
 	{
