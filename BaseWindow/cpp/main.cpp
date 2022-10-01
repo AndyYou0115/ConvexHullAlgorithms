@@ -16,7 +16,7 @@ using namespace std;
 #pragma comment(lib, "d2d1")
 template <class T>
 
-void SafeRelease(T **ppT)
+void SafeRelease(T** ppT)
 {
 	if (*ppT)
 	{
@@ -30,7 +30,7 @@ class DPIScale
 	static float scaleY;
 
 public:
-	static void Initialize(ID2D1Factory *pFactory)
+	static void Initialize(ID2D1Factory* pFactory)
 	{
 		FLOAT dpiX, dpiY;
 		pFactory->GetDesktopDpi(&dpiX, &dpiY);
@@ -82,17 +82,17 @@ class BaseWindow
 public:
 	static LRESULT CALLBACK WindowProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
 	{
-		DERIVED_TYPE *pThis = NULL;
+		DERIVED_TYPE* pThis = NULL;
 		if (uMsg == WM_NCCREATE)
 		{
-			CREATESTRUCT *pCreate = (CREATESTRUCT *)lParam;
-			pThis = (DERIVED_TYPE *)pCreate->lpCreateParams;
+			CREATESTRUCT* pCreate = (CREATESTRUCT*)lParam;
+			pThis = (DERIVED_TYPE*)pCreate->lpCreateParams;
 			SetWindowLongPtr(hwnd, GWLP_USERDATA, (LONG_PTR)pThis);
 			pThis->m_hwnd = hwnd;
 		}
 		else
 		{
-			pThis = (DERIVED_TYPE *)GetWindowLongPtr(hwnd, GWLP_USERDATA);
+			pThis = (DERIVED_TYPE*)GetWindowLongPtr(hwnd, GWLP_USERDATA);
 		}
 		if (pThis)
 		{
@@ -117,7 +117,7 @@ public:
 		HWND hWndParent = 0,
 		HMENU hMenu = 0)
 	{
-		WNDCLASS wc = {0};
+		WNDCLASS wc = { 0 };
 
 		wc.lpfnWndProc = DERIVED_TYPE::WindowProc;
 		wc.hInstance = GetModuleHandle(NULL);
@@ -145,7 +145,7 @@ class MainWindow : public BaseWindow<MainWindow>
 {
 	// HONESTLY NO IDEA WHAT THESE DO I DONT THINK THEY ARE EVEN BEING USED
 	HCURSOR hCursor;
-	ID2D1Factory *pFactory;
+	ID2D1Factory* pFactory;
 	D2D1_SIZE_F prevSize;
 	D2D1_POINT_2F ptMouse;
 
@@ -159,15 +159,15 @@ class MainWindow : public BaseWindow<MainWindow>
 	int getMode();
 
 	// Main Variables
-	ID2D1HwndRenderTarget *pRenderTarget;
+	ID2D1HwndRenderTarget* pRenderTarget;
 	D2D1_RECT_F rectangle;
 	float zoom = 1; // Scroll factor
 
 	// BRUSHES
-	ID2D1SolidColorBrush *pBrush;	  // yellow
-	ID2D1SolidColorBrush *rectBrush;  // grey
-	ID2D1SolidColorBrush *greenBrush; // Green
-	ID2D1SolidColorBrush *redBrush;	  // Red
+	ID2D1SolidColorBrush* pBrush;	  // yellow
+	ID2D1SolidColorBrush* rectBrush;  // grey
+	ID2D1SolidColorBrush* greenBrush; // Green
+	ID2D1SolidColorBrush* redBrush;	  // Red
 	// QUICKHULL | POINT CONVEX HULL
 	D2D1_ELLIPSE ellipses[15];
 	int lengthOfEllipses;
@@ -179,6 +179,7 @@ class MainWindow : public BaseWindow<MainWindow>
 
 	D2D1_ELLIPSE pointCHTestPoint;
 	BOOL pointCHSelected = false;
+	BOOL insideCH = true;
 	// USER INTERACTION
 	int selectedPoint;		// point thats clicked on by mouse
 	void CreateButtons();	// Makes the buttons
@@ -219,16 +220,25 @@ void MainWindow::PointCHMethod()
 	{
 		D2D1_SIZE_F size = pRenderTarget->GetSize();
 
+		char buffer[256] = { 0 };
+		wchar_t wtext[256];
+		sprintf(buffer, "Value is %f %f", hull[0].point.x, hull[0].point.y);
+		mbstowcs(wtext, buffer, strlen(buffer) + 1);
+		LPWSTR ptr = wtext;
+		CreateWindow(L"STATIC", ptr, WS_VISIBLE | WS_CHILD | WS_BORDER, 200, 300, 300, 25, m_hwnd, NULL, NULL, NULL);
+
 		for (int i = 0; i < hull.size() - 1; i++)
 		{
-			if (Left(hull[i].point, hull[i + 1].point, pointCHTestPoint.point))
+			if (Left(hull[i + 1].point, hull[i].point, pointCHTestPoint.point))
 			{
-				pRenderTarget->FillEllipse(pointCHTestPoint, redBrush);
+				insideCH = false;
 				return;
 			}
 		}
-		pRenderTarget->FillEllipse(pointCHTestPoint, greenBrush);
+		insideCH = true;
 	}
+	OnPaint();
+	CreateButtons();
 }
 void MainWindow::SetMode(int x)
 {
@@ -366,8 +376,9 @@ void MainWindow::OnMouseMove(int pixelX, int pixelY)
 	{
 		pointCHTestPoint.point.x = dipX;
 		pointCHTestPoint.point.y = dipY;
+
 		PointCHMethod();
-		OnPaint();
+
 		CreateButtons();
 	}
 }
@@ -432,7 +443,15 @@ void MainWindow::OnPaint()
 		}
 		if (getMode() == 3)
 		{
-			pRenderTarget->FillEllipse(pointCHTestPoint, greenBrush);
+			if (insideCH)
+			{
+				pRenderTarget->FillEllipse(pointCHTestPoint, greenBrush);
+			}
+			else
+			{
+
+				pRenderTarget->FillEllipse(pointCHTestPoint, redBrush);
+			}
 		}
 
 		pRenderTarget->FillRectangle(&rectangle, rectBrush);
@@ -492,7 +511,7 @@ void MainWindow::MouseScroll()
 				D2D1::Size(1 + scaleFact, 1 + scaleFact),
 				D2D1::Point2F(midX, midY)));
 
-		char buffer[256] = {0};
+		char buffer[256] = { 0 };
 		wchar_t wtext[256];
 		sprintf(buffer, "Value is %f %f", ellipses[0].point.x, 1 + scaleFact);
 		mbstowcs(wtext, buffer, strlen(buffer) + 1);
@@ -589,7 +608,7 @@ void MainWindow::OnLButtonDown(int x, int y)
 	const float dipY = DPIScale::PixelsToDipsY(y);
 	int hitIndex = HitTest(dipX, dipY);
 
-	char buffer[256] = {0};
+	char buffer[256] = { 0 };
 	wchar_t wtext[256];
 	sprintf(buffer, "Value is %f %f", dipX, dipY);
 	mbstowcs(wtext, buffer, strlen(buffer) + 1);
@@ -631,7 +650,7 @@ void MainWindow::CreateQuickHull()
 int MainWindow::findSide(D2D1_ELLIPSE p1, D2D1_ELLIPSE p2, D2D1_ELLIPSE p)
 {
 	int val = (p.point.y - p1.point.y) * (p2.point.x - p1.point.x) -
-			  (p2.point.y - p1.point.y) * (p.point.x - p1.point.x);
+		(p2.point.y - p1.point.y) * (p.point.x - p1.point.x);
 
 	if (val > 0)
 		return 1;
@@ -643,7 +662,7 @@ int MainWindow::findSide(D2D1_ELLIPSE p1, D2D1_ELLIPSE p2, D2D1_ELLIPSE p)
 int MainWindow::dist(D2D1_ELLIPSE p1, D2D1_ELLIPSE p2, D2D1_ELLIPSE p)
 {
 	return abs((p.point.y - p1.point.y) * (p2.point.x - p1.point.x) -
-			   (p2.point.y - p1.point.y) * (p.point.x - p1.point.x));
+		(p2.point.y - p1.point.y) * (p.point.x - p1.point.x));
 }
 
 void MainWindow::quickHull(D2D1_ELLIPSE p1, D2D1_ELLIPSE p2, int side)
@@ -786,7 +805,7 @@ LRESULT MainWindow::HandleMessage(UINT uMsg, WPARAM wParam, LPARAM lParam)
 
 	case WM_CREATE:
 		if (FAILED(D2D1CreateFactory(
-				D2D1_FACTORY_TYPE_SINGLE_THREADED, &pFactory)))
+			D2D1_FACTORY_TYPE_SINGLE_THREADED, &pFactory)))
 		{
 			return -1; // Fail CreateWindowEx.
 		}
@@ -833,6 +852,7 @@ LRESULT MainWindow::HandleMessage(UINT uMsg, WPARAM wParam, LPARAM lParam)
 				RandPoints();
 				CreateQuickHull();
 				DrawHull();
+				PointCHMethod();
 				pRenderTarget->SetTransform(D2D1::Matrix3x2F::Identity());
 			}
 		}
@@ -880,7 +900,7 @@ LRESULT MainWindow::HandleMessage(UINT uMsg, WPARAM wParam, LPARAM lParam)
 		zoom += (float)GET_WHEEL_DELTA_WPARAM(wParam) / WHEEL_DELTA;
 		MouseScroll();
 	}
-		// Other messages not shown...
+	// Other messages not shown...
 
 	case WM_SIZE:
 		Resize();
