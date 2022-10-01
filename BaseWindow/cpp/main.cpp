@@ -16,7 +16,7 @@ using namespace std;
 #pragma comment(lib, "d2d1")
 template <class T>
 
-void SafeRelease(T **ppT)
+void SafeRelease(T** ppT)
 {
 	if (*ppT)
 	{
@@ -30,7 +30,7 @@ class DPIScale
 	static float scaleY;
 
 public:
-	static void Initialize(ID2D1Factory *pFactory)
+	static void Initialize(ID2D1Factory* pFactory)
 	{
 		FLOAT dpiX, dpiY;
 		pFactory->GetDesktopDpi(&dpiX, &dpiY);
@@ -82,17 +82,17 @@ class BaseWindow
 public:
 	static LRESULT CALLBACK WindowProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
 	{
-		DERIVED_TYPE *pThis = NULL;
+		DERIVED_TYPE* pThis = NULL;
 		if (uMsg == WM_NCCREATE)
 		{
-			CREATESTRUCT *pCreate = (CREATESTRUCT *)lParam;
-			pThis = (DERIVED_TYPE *)pCreate->lpCreateParams;
+			CREATESTRUCT* pCreate = (CREATESTRUCT*)lParam;
+			pThis = (DERIVED_TYPE*)pCreate->lpCreateParams;
 			SetWindowLongPtr(hwnd, GWLP_USERDATA, (LONG_PTR)pThis);
 			pThis->m_hwnd = hwnd;
 		}
 		else
 		{
-			pThis = (DERIVED_TYPE *)GetWindowLongPtr(hwnd, GWLP_USERDATA);
+			pThis = (DERIVED_TYPE*)GetWindowLongPtr(hwnd, GWLP_USERDATA);
 		}
 		if (pThis)
 		{
@@ -117,7 +117,7 @@ public:
 		HWND hWndParent = 0,
 		HMENU hMenu = 0)
 	{
-		WNDCLASS wc = {0};
+		WNDCLASS wc = { 0 };
 
 		wc.lpfnWndProc = DERIVED_TYPE::WindowProc;
 		wc.hInstance = GetModuleHandle(NULL);
@@ -143,29 +143,57 @@ protected:
 
 class MainWindow : public BaseWindow<MainWindow>
 {
+	//HONESTLY NO IDEA WHAT THESE DO I DONT THINK THEY ARE EVEN BEING USED
 	HCURSOR hCursor;
 	ID2D1Factory *pFactory;
 	ID2D1HwndRenderTarget *pRenderTarget;
 	D2D1_SIZE_F prevSize;
+
 	D2D1_POINT_2F ptMouse;
-	ID2D1SolidColorBrush *pBrush;
-	ID2D1SolidColorBrush *rectBrush;
+	D2D1_SIZE_F prevSize;
+
+	//MODE SWITCH VARIABLES
+	BOOL MDDMode = false;
+	BOOL MSDMode = false;
+	BOOL QuickHullMode = false;
+	BOOL PCHMode = false;
+	BOOL GJKMode = false;
+	void SetMode(int x);
+	int getMode();
+
+	//Main Variables
+	ID2D1HwndRenderTarget* pRenderTarget;
+	D2D1_RECT_F rectangle;
+	float zoom = 1; //Scroll factor
+
+	//BRUSHES
+	ID2D1SolidColorBrush* pBrush; //yellow
+	ID2D1SolidColorBrush* rectBrush; //grey
+
+	//QUICKHULL | POINT CONVEX HULL
 	D2D1_ELLIPSE ellipses[15];
 	int lengthOfEllipses;
+
 	int selectedPoint;
-	D2D1_RECT_F rectangle;
-	float zoom = 1;
+
 	vector<D2D1_ELLIPSE> hull;
-    vector<HRESULT> edges;
+  vector<HRESULT> edges;
 
 	void SortPoints();
-	void CreateButtons();
-	void CalculateLayout();
+
+	D2D1_POINT_2F pointCHTestPoint;
+
+	//USER INTERACTION
+	int selectedPoint; //point thats clicked on by mouse
+	void CreateButtons();//Makes the buttons
+	void CalculateLayout(); //recalcs the layout
+
 	HRESULT CreateGraphicsResources();
 	void DiscardGraphicsResources();
 	void OnPaint();
 	void Resize();
 	void RandPoints();
+	//USER MOUSE INTERACTIONS:
 	void OnLButtonDown(int x, int y);
 	void OnMouseMove(int pixelX, int pixelY);
 	BOOL HitTest(float x, float y);
@@ -175,6 +203,8 @@ class MainWindow : public BaseWindow<MainWindow>
 	void CreateQuickHull(); 
 	void DrawHull();
 	
+	void MouseScroll();
+
 public:
 	MainWindow() : pFactory(NULL), pRenderTarget(NULL), pBrush(NULL)
 	{
@@ -183,6 +213,70 @@ public:
 	LRESULT HandleMessage(UINT uMsg, WPARAM wParam, LPARAM lParam);
 };
 
+void MainWindow::SetMode(int x)
+{
+
+	if (x == 0)
+	{
+		MDDMode = true;
+		MSDMode = false;
+		QuickHullMode = false;
+		PCHMode = false;
+		GJKMode = false;
+	}
+	else if (x == 1) {
+		MDDMode = false;
+		MSDMode = true;
+		QuickHullMode = false;
+		PCHMode = false;
+		GJKMode = false;
+	}
+	else if (x == 2) {
+		MDDMode = false;
+		MSDMode = false;
+		QuickHullMode = true;
+		PCHMode = false;
+		GJKMode = false;
+	}
+	else if (x == 3) {
+		MDDMode = false;
+		MSDMode = false;
+		QuickHullMode = false;
+		PCHMode = true;
+		GJKMode = false;
+	}
+	else if (x == 4) {
+		MDDMode = false;
+		MSDMode = false;
+		QuickHullMode = false;
+		PCHMode = false;
+		GJKMode = true;
+	}
+}
+
+int MainWindow::getMode() {
+	BOOL MDDMode = false;
+	BOOL MSDMode = false;
+	BOOL QuickHullMode = false;
+	BOOL PCHMode = false;
+	BOOL GJKMode = false;
+	if (MDDMode) {
+		return 0;
+	}
+	else if (MSDMode) {
+		return 1;
+	}
+	else if (QuickHullMode) {
+		return 2;
+	}
+	else if (PCHMode) {
+		return 3;
+	}
+	else if (GJKMode) {
+		return 4;
+	}
+	return -1;
+}
 BOOL HitTestEllipse(float x, float y, D2D1_ELLIPSE ellipse)
 {
 	const float a = ellipse.radiusX;
@@ -214,17 +308,17 @@ void MainWindow::CalculateLayout()
 	if (pRenderTarget != NULL)
 	{
 		D2D1_SIZE_F size = pRenderTarget->GetSize();
-
-        rectangle = D2D1::RectF(
-            230,
-            0,
-            250,
-            size.height);
+		float scaleFact = (zoom / 100) + 1;
+		rectangle = D2D1::RectF(
+			230,
+			0,
+			250,
+			size.height);
 
 		// for (int i = 0; i < 15; i++)
 		// {
-		//     ellipses[i].point.x = diffInWidth;
-		//     ellipses[i].point.y = diffInHeight;
+		// 	ellipses[i].point.x *= scaleFact;
+		// 	ellipses[i].point.y *= scaleFact;
 		// }
 	}
 }
@@ -331,6 +425,7 @@ void MainWindow::RandPoints()
 	}
 }
 
+
 void MainWindow::Resize()
 {
 	if (pRenderTarget != NULL)
@@ -345,11 +440,123 @@ void MainWindow::Resize()
 		InvalidateRect(m_hwnd, NULL, FALSE);
 	}
 }
+void MainWindow::MouseScroll()
+{
+	if (pRenderTarget != NULL)
+	{
+		D2D1_SIZE_F size = pRenderTarget->GetSize();
+		float midX = (size.width + 250) / 2;
+		float midY = size.height / 2;
+		float scaleFact = zoom / 100;
+
+		pRenderTarget->SetTransform(
+			D2D1::Matrix3x2F::Scale(
+				D2D1::Size(1 + scaleFact, 1 + scaleFact),
+				D2D1::Point2F(midX, midY)));
+
+		char buffer[256] = { 0 };
+		wchar_t wtext[256];
+		sprintf(buffer, "Value is %f %f", ellipses[0].point.x, 1 + scaleFact);
+		mbstowcs(wtext, buffer, strlen(buffer) + 1);
+		LPWSTR ptr = wtext;
+		CreateWindow(L"STATIC", ptr, WS_VISIBLE | WS_CHILD | WS_BORDER, 200, 300, 300, 25, m_hwnd, NULL, NULL, NULL);
+		// for (int i = 0; i < 15; i++)
+		// {
+		// 	double zoomFact = 0.04;
+		// 	// SCROLL UP
+		// 	if (zoom < 0)
+		// 	{
+
+		// 		if (ellipses[i].radiusX < 50)
+		// 		{
+		// 			ellipses[i].radiusX *= 1 + zoomFact;
+		// 			ellipses[i].radiusY *= 1 + zoomFact;
+		// 		}
+
+		// 		// if to the left of the midX
+		// 		if (ellipses[i].point.x < midX)
+		// 		{
+		// 			// this adds the zoom
+		// 			ellipses[i].point.x *= 1 - zoomFact;
+		// 			if (ellipses[i].point.y < midY)
+		// 			{
+		// 				ellipses[i].point.y *= 1 - zoomFact;
+		// 			}
+		// 			else if (ellipses[i].point.y > midY)
+		// 			{
+		// 				ellipses[i].point.y *= 1 + zoomFact;
+		// 			}
+		// 		}
+		// 		else if (ellipses[i].point.x > midX)
+		// 		{
+		// 			// this adds the zoom
+		// 			ellipses[i].point.x *= 1 + zoomFact;
+		// 			if (ellipses[i].point.y < midY)
+		// 			{
+		// 				ellipses[i].point.y *= 1 - zoomFact;
+		// 			}
+		// 			else if (ellipses[i].point.y > midY)
+		// 			{
+		// 				ellipses[i].point.y *= 1 + zoomFact;
+		// 			}
+		// 		}
+		// 	} // SCROLL DOWN - zoom out
+		// 	if (zoom > 0)
+		// 	{
+
+		// 		if (ellipses[i].radiusX > 20)
+		// 		{
+		// 			ellipses[i].radiusX *= 1 - zoomFact;
+		// 			ellipses[i].radiusY *= 1 - zoomFact;
+		// 		}
+
+		// 		// if to the left of the midX
+		// 		if (ellipses[i].point.x < midX)
+		// 		{
+		// 			// this adds the zoom
+		// 			ellipses[i].point.x *= 1 + zoomFact;
+		// 			if (ellipses[i].point.y < midY)
+		// 			{
+		// 				ellipses[i].point.y *= 1 + zoomFact;
+		// 			}
+		// 			else if (ellipses[i].point.y > midY)
+		// 			{
+		// 				ellipses[i].point.y *= 1 - zoomFact;
+		// 			}
+		// 		}
+		// 		else if (ellipses[i].point.x > midX)
+		// 		{
+		// 			// this adds the zoom
+		// 			ellipses[i].point.x *= 1 - zoomFact;
+		// 			if (ellipses[i].point.y < midY)
+		// 			{
+		// 				ellipses[i].point.y * 1 + zoomFact;
+		// 			}
+		// 			else if (ellipses[i].point.y > midY)
+		// 			{
+		// 				ellipses[i].point.y *= 1 - zoomFact;
+		// 			}
+		// 		}
+		// 	}
+		// }
+
+		OnPaint();
+		CreateButtons();
+	}
+}
+
 void MainWindow::OnLButtonDown(int x, int y)
 {
 	const float dipX = DPIScale::PixelsToDipsX(x);
 	const float dipY = DPIScale::PixelsToDipsY(y);
 	int hitIndex = HitTest(dipX, dipY);
+
+	char buffer[256] = { 0 };
+	wchar_t wtext[256];
+	sprintf(buffer, "Value is %f %f", dipX, dipY);
+	mbstowcs(wtext, buffer, strlen(buffer) + 1);
+	LPWSTR ptr = wtext;
+	CreateWindow(L"STATIC", ptr, WS_VISIBLE | WS_CHILD | WS_BORDER, 200, 500, 300, 25, m_hwnd, NULL, NULL, NULL);
 	if (hitIndex != -1)
 	{
 		// we hit something
@@ -538,7 +745,7 @@ LRESULT MainWindow::HandleMessage(UINT uMsg, WPARAM wParam, LPARAM lParam)
 
 	case WM_CREATE:
 		if (FAILED(D2D1CreateFactory(
-				D2D1_FACTORY_TYPE_SINGLE_THREADED, &pFactory)))
+			D2D1_FACTORY_TYPE_SINGLE_THREADED, &pFactory)))
 		{
 			return -1; // Fail CreateWindowEx.
 		}
@@ -550,25 +757,51 @@ LRESULT MainWindow::HandleMessage(UINT uMsg, WPARAM wParam, LPARAM lParam)
 		// IF BUTTON PRESSURED AND THAT ID IS OUR ID
 		if (LOWORD(wParam) == MinDiffDemo)
 		{
-			MessageBox(NULL, L"MinDiffDemo", L"AH! I GOT PRESSED", MB_ICONINFORMATION);
+			if (pRenderTarget != NULL)
+			{
+				SetMode(0);
+				pRenderTarget->SetTransform(D2D1::Matrix3x2F::Identity());
+			}
 		}
 		else if (LOWORD(wParam) == MinSumDemo)
 		{
-			MessageBox(NULL, L"MinSumDemo", L"AH! I GOT PRESSED", MB_ICONINFORMATION);
+			if (pRenderTarget != NULL)
+			{
+				SetMode(1);
+				pRenderTarget->SetTransform(D2D1::Matrix3x2F::Identity());
+			}
 		}
 		else if (LOWORD(wParam) == QuickHull)
 		{
 			RandPoints();
 			CreateQuickHull();
 			DrawHull();
+
+			if (pRenderTarget != NULL)
+			{
+				SetMode(2);
+				pRenderTarget->SetTransform(D2D1::Matrix3x2F::Identity());
+			}
+
+
 		}
 		else if (LOWORD(wParam) == PointCH)
 		{
 			RandPoints();
-			MessageBox(NULL, L"PointCH", L"AH! I GOT PRESSED", MB_ICONINFORMATION);
+			if (pRenderTarget != NULL)
+			{
+				SetMode(3);
+				pRenderTarget->SetTransform(D2D1::Matrix3x2F::Identity());
+			}
+
 		}
 		else if (LOWORD(wParam) == GJK)
 		{
+			if (pRenderTarget != NULL)
+			{
+				SetMode(4);
+				pRenderTarget->SetTransform(D2D1::Matrix3x2F::Identity());
+			}
 			MessageBox(NULL, L"GJK", L"AH! I GOT PRESSED", MB_ICONINFORMATION);
 		}
 		return 0;
@@ -603,27 +836,9 @@ LRESULT MainWindow::HandleMessage(UINT uMsg, WPARAM wParam, LPARAM lParam)
 	{
 		// how many times the scroll wheel was scrolled
 		zoom += (float)GET_WHEEL_DELTA_WPARAM(wParam) / WHEEL_DELTA;
-		if (pRenderTarget != NULL)
-		{
-			RECT rc;
-			GetClientRect(m_hwnd, &rc);
-
-			D2D1_SIZE_U size;
-			if (zoom > 0)
-			{
-				size == D2D1::SizeU(rc.right * zoom, rc.bottom * zoom);
-			}
-			else if (zoom < 0)
-			{
-				size = D2D1::SizeU(rc.right / zoom, rc.bottom / zoom);
-			}
-
-			pRenderTarget->Resize(size);
-			CalculateLayout();
-			InvalidateRect(m_hwnd, NULL, FALSE);
-		}
+		MouseScroll();
 	}
-		// Other messages not shown...
+	// Other messages not shown...
 
 	case WM_SIZE:
 		Resize();
