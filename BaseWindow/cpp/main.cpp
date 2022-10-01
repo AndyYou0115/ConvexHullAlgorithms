@@ -143,40 +143,57 @@ protected:
 
 class MainWindow : public BaseWindow<MainWindow>
 {
+	//HONESTLY NO IDEA WHAT THESE DO I DONT THINK THEY ARE EVEN BEING USED
+	HCURSOR hCursor;
+	ID2D1Factory* pFactory;
+	D2D1_POINT_2F ptMouse;
+	D2D1_SIZE_F prevSize;
 
+	//MODE SWITCH VARIABLES
 	BOOL MDDMode = false;
 	BOOL MSDMode = false;
 	BOOL QuickHullMode = false;
 	BOOL PCHMode = false;
 	BOOL GJKMode = false;
-	HCURSOR hCursor;
+	void SetMode(int x);
+	int getMode();
 
-	ID2D1Factory* pFactory;
+	//Main Variables
 	ID2D1HwndRenderTarget* pRenderTarget;
-	D2D1_SIZE_F prevSize;
-	D2D1_POINT_2F ptMouse;
-	ID2D1SolidColorBrush* pBrush;
-	ID2D1SolidColorBrush* rectBrush;
+	D2D1_RECT_F rectangle;
+	float zoom = 1; //Scroll factor
+
+	//BRUSHES
+	ID2D1SolidColorBrush* pBrush; //yellow
+	ID2D1SolidColorBrush* rectBrush; //grey
+
+	//QUICKHULL | POINT CONVEX HULL
 	D2D1_ELLIPSE ellipses[15];
 	int lengthOfEllipses;
-	int selectedPoint;
-	D2D1_RECT_F rectangle;
-	float zoom = 1;
-	// vector<D2D1_LINE_JOIN_MITER> edges;
+
 	D2D1_POINT_2F pointCHTestPoint;
-	void CreateButtons();
-	void CalculateLayout();
+
+
+
+	//USER INTERACTION
+	int selectedPoint; //point thats clicked on by mouse
+
+
+	// vector<D2D1_LINE_JOIN_MITER> edges;
+
+	void CreateButtons();//Makes the buttons
+	void CalculateLayout(); //recalcs the layout
 	HRESULT CreateGraphicsResources();
 	void DiscardGraphicsResources();
 	void OnPaint();
 	void Resize();
 	void RandPoints();
+	//USER MOUSE INTERACTIONS:
 	void OnLButtonDown(int x, int y);
 	void OnMouseMove(int pixelX, int pixelY);
 	BOOL HitTest(float x, float y);
 	void MouseScroll();
-	void SetMode(int x);
-	int getMode();
+
 public:
 	MainWindow() : pFactory(NULL), pRenderTarget(NULL), pBrush(NULL)
 	{
