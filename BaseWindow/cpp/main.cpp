@@ -4,7 +4,7 @@
 #include <d2d1.h>
 #include <cstdlib>
 #include <list>
-
+#include <stdio.h>
 #include <memory>
 #include <iostream>
 using namespace std;
@@ -144,7 +144,6 @@ protected:
 class MainWindow : public BaseWindow<MainWindow>
 {
 	HCURSOR hCursor;
-
 	ID2D1Factory *pFactory;
 	ID2D1HwndRenderTarget *pRenderTarget;
 	D2D1_SIZE_F prevSize;
@@ -156,8 +155,10 @@ class MainWindow : public BaseWindow<MainWindow>
 	int selectedPoint;
 	D2D1_RECT_F rectangle;
 	float zoom = 1;
-    vector<D2D1_LINE_JOIN_MITER> edges;
+	vector<D2D1_ELLIPSE> hull;
+    vector<HRESULT> edges;
 
+	void SortPoints();
 	void CreateButtons();
 	void CalculateLayout();
 	HRESULT CreateGraphicsResources();
@@ -168,7 +169,12 @@ class MainWindow : public BaseWindow<MainWindow>
 	void OnLButtonDown(int x, int y);
 	void OnMouseMove(int pixelX, int pixelY);
 	BOOL HitTest(float x, float y);
-
+	int findSide(D2D1_ELLIPSE p1, D2D1_ELLIPSE p2, D2D1_ELLIPSE p);
+	int dist(D2D1_ELLIPSE p1, D2D1_ELLIPSE p2, D2D1_ELLIPSE p);
+	void quickHull(D2D1_ELLIPSE p1, D2D1_ELLIPSE p2, int side);
+	void CreateQuickHull(); 
+	void DrawHull();
+	
 public:
 	MainWindow() : pFactory(NULL), pRenderTarget(NULL), pBrush(NULL)
 	{
@@ -229,9 +235,14 @@ void MainWindow::OnMouseMove(int pixelX, int pixelY)
 	const float dipY = DPIScale::PixelsToDipsY(pixelY);
 	if (selectedPoint != -1)
 	{
+
 		// if we got a point
 		ellipses[selectedPoint].point.x = dipX;
 		ellipses[selectedPoint].point.y = dipY;
+		hull = vector<D2D1_ELLIPSE>();
+		RandPoints();
+		CreateQuickHull();
+		DrawHull();
 		OnPaint();
 		CreateButtons();
 	}
@@ -319,31 +330,6 @@ void MainWindow::RandPoints()
 		CreateButtons();
 	}
 }
-void MainWindow::DrawHull()
-{
-    //Sort points based on x value
-    auto sortrule = [] (D2D1_ELLIPSE const& e1, D2D1_ELLIPSE const& e2) -> bool
-    {
-        return e1.point.x < e2.point.x;
-    };
-
-    sort(hull.begin(), hull.end(), sortrule);
-    
-    const D2D1_COLOR_F color = D2D1::ColorF(1.0f, 1.0f, 0);
-    pRenderTarget->CreateSolidColorBrush(color, &pBrush);
-    for(int i=0; i < hull.size()-1; i++)
-    {   
-         edge = pRenderTarget->DrawLine(
-                D2D1::Point2F(static_cast<FLOAT>(hull[i].point.x),static_cast<FLOAT>(hull[i].point.y)),
-                D2D1::Point2F(static_cast<FLOAT>(hull[i+1].point.x),static_cast<FLOAT>(hull[i+1].point.y)),
-                ,
-                0.5f
-            )
-        edges.push_back(edge); 
-        
-    }
-    edges.push_back();
-}
 
 void MainWindow::Resize()
 {
@@ -370,6 +356,149 @@ void MainWindow::OnLButtonDown(int x, int y)
 		selectedPoint = hitIndex;
 	}
 }
+
+void MainWindow::CreateQuickHull() 
+{
+	hull = vector<D2D1_ELLIPSE>();
+	D2D1_ELLIPSE left = ellipses[0];
+	D2D1_ELLIPSE right = ellipses[0];
+	int ileft = 0;
+	int iright = 0;
+
+	//Go through the list of ellipses to find the extreme top, left, right, bottom points
+	for(int i=1; i < 15; i++) {
+		D2D1_ELLIPSE pt = ellipses[i];
+		if(pt.point.x < left.point.x)
+			ileft = i;
+		if(pt.point.x > right.point.x)
+			iright = i;
+	}
+
+	quickHull(ellipses[ileft], ellipses[iright], 1);
+	quickHull(ellipses[ileft], ellipses[iright], -1);
+}
+
+int MainWindow::findSide(D2D1_ELLIPSE p1, D2D1_ELLIPSE p2, D2D1_ELLIPSE p)
+{
+	int val = (p.point.y - p1.point.y) * (p2.point.x - p1.point.x) - 
+	(p2.point.y - p1.point.y) * (p.point.x - p1.point.x);
+
+	if(val > 0)
+		return 1;
+	if (val < 0)
+		return -1;
+	return 0;
+}
+
+int MainWindow::dist(D2D1_ELLIPSE p1, D2D1_ELLIPSE p2, D2D1_ELLIPSE p) 
+{
+	return abs((p.point.y - p1.point.y) * (p2.point.x - p1.point.x) - 
+	(p2.point.y - p1.point.y) * (p.point.x - p1.point.x));
+}
+
+void MainWindow::quickHull(D2D1_ELLIPSE p1, D2D1_ELLIPSE p2, int side)
+{
+	int ifarthest = -1;
+	int maxdist = 0;
+
+	for(int i=0; i<15; i++)
+	{
+		int current = dist(p1, p2, ellipses[i]);
+		if(findSide(p1, p2, ellipses[i]) == side && current > maxdist)
+		{
+			ifarthest = i;
+			maxdist = current;
+		}
+	}
+
+	if(ifarthest == -1)
+	{
+		hull.push_back(p1);
+		hull.push_back(p2);
+		
+		return;
+	}
+	quickHull(ellipses[ifarthest], p1, -findSide(ellipses[ifarthest], p1, p2));
+    quickHull(ellipses[ifarthest], p2, -findSide(ellipses[ifarthest], p2, p1));
+}
+
+void MainWindow::SortPoints()
+{
+	D2D1_ELLIPSE min = hull[0];
+	for(int i=1; i<hull.size(); i++)
+	{
+		if(hull[i].point.x > min.point.x)
+		{
+			min = hull[i];
+			D2D1_ELLIPSE temp = hull[0];
+			hull[0] = min;
+			hull[i] = temp;
+		}
+	}
+
+	int y = hull[0].point.y;
+	int x = hull[0].point.x;
+	for(int j=1; j<hull.size(); j++)
+	{
+		for(int k=j+1; k<hull.size(); k++)
+		{
+			if((atan((hull[j].point.y-y)/(hull[j].point.x-x))) > (atan((hull[k].point.y-y)/(hull[k].point.x-x))))
+			{
+				D2D1_ELLIPSE temp = hull[j];
+				hull[j] = hull[k];
+				hull[k] = temp;
+			}
+		}
+	}
+}
+
+void MainWindow::DrawHull()
+{
+	//Sort the points based on x value
+	SortPoints();
+	// char buffer[254] ={0};
+	// sprintf(buffer, "BUFFER SIZE %i", hull.size());
+	// MessageBoxA(NULL, buffer, "BUFF size", NULL);
+	// for(int i=0; i < hull.size(); i++)
+   	// 	std::cout << hull.at(i).point.x << ',' << hull.at(i).point.y << endl;
+	
+	//Draw the convex hull with the sorted point array
+	PAINTSTRUCT ps;
+	BeginPaint(m_hwnd, &ps);
+	pRenderTarget->BeginDraw();
+
+	HRESULT hr = S_OK;
+	const D2D1_COLOR_F yellow = D2D1::ColorF(D2D1::ColorF::CadetBlue, 1.0f);
+	hr = pRenderTarget->CreateSolidColorBrush(yellow, &pBrush);
+
+	for(int i=0; i<hull.size()-1; i++)
+	{
+		// if (SUCCEEDED(hr)) {
+		// 	CreateWindow(L"STATIC", L"SUCCEEDED", WS_VISIBLE | WS_CHILD | WS_BORDER, 200, 300, 300, 25, m_hwnd, NULL, NULL, NULL);
+		// }
+		//edges.push_back(
+			pRenderTarget->DrawLine(
+				D2D1::Point2F(static_cast<FLOAT>(hull[i].point.x), static_cast<FLOAT>(hull[i].point.y)),
+				D2D1::Point2F(static_cast<FLOAT>(hull[i+1].point.x), static_cast<FLOAT>(hull[i+1].point.y)),
+				pBrush,
+				1.5f
+			);
+	//);		
+	}
+
+	//Draw the last edge from last point in the list to the first point in the list
+	//edges.push_back(
+	pRenderTarget->DrawLine(
+        D2D1::Point2F(static_cast<FLOAT>(hull[hull.size()-1].point.x), static_cast<FLOAT>(hull[hull.size()-1].point.y)),
+		D2D1::Point2F(static_cast<FLOAT>(hull[0].point.x), static_cast<FLOAT>(hull[0].point.y)),
+        pBrush,
+        0.5f
+	);
+	pRenderTarget->EndDraw();
+	EndPaint(m_hwnd, &ps);
+	//);	
+}
+
 void MainWindow::CreateButtons()
 {
 	CreateWindow(TEXT("BUTTON"), TEXT("Minkowski Difference Demo"), WS_CHILD | WS_VISIBLE, 10, 10, 200, 30, m_hwnd, (HMENU)MinDiffDemo, NULL, NULL);
@@ -430,7 +559,8 @@ LRESULT MainWindow::HandleMessage(UINT uMsg, WPARAM wParam, LPARAM lParam)
 		else if (LOWORD(wParam) == QuickHull)
 		{
 			RandPoints();
-			// MessageBox(NULL, L"QuickHull", L"AH! I GOT PRESSED", MB_ICONINFORMATION);
+			CreateQuickHull();
+			DrawHull();
 		}
 		else if (LOWORD(wParam) == PointCH)
 		{
